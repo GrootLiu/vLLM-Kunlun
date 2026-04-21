@@ -12,9 +12,9 @@ This document describes how to install vllm-kunlun manually.
 
 ## Setup environment using container
 We provide a clean and minimal base image for your use.You can pull it using the docker pull command.
-- **Internal registry (Baidu intranet only)**  
+- **Internal registry (Baidu intranet only)**
   `iregistry.baidu-int.com/hac_test/aiak-inference-llm:vLLM-Kunlun-Base`
-- **Public registry**  
+- **Public registry**
   `wjie520/vllm_kunlun:uv_base`
 
 ### Container startup script
@@ -83,7 +83,7 @@ Copy the eval_frame.py patch:
 cp vllm_kunlun/patches/eval_frame.py "${CONDA_PREFIX:-$VIRTUAL_ENV}"/lib/python3.10/site-packages/torch/_dynamo/eval_frame.py
 ```
 
- ### Replace quantization __init__.py
+### Replace quantization __init__.py
 
 ```
 cp vllm_kunlun/quantization/__init__.py "${CONDA_PREFIX:-$VIRTUAL_ENV}"/lib/python3.10/site-packages/vllm/model_executor/layers/quantization/__init__.py
@@ -98,10 +98,13 @@ wget -O xpytorch-cp310-torch251-ubuntu2004-x64.run https://baidu-kunlun-customer
 bash xpytorch-cp310-torch251-ubuntu2004-x64.run --noexec --target xpytorch_unpack && cd xpytorch_unpack/ && \
 sed -i 's/pip/uv pip/g; s/CONDA_PREFIX/VIRTUAL_ENV/g' setup.sh && bash setup.sh
 ```
+
 ## Applying PyTorch patches
+
 ```
 python vllm_kunlun/patches/patch_torch251.py
 ```
+
 ## Install Kunlun-related packages
 
 ```

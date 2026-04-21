@@ -103,6 +103,10 @@ def register_model():
         "vllm_kunlun.models.qwen3_5:Qwen3_5ForConditionalGeneration",
     )
 
+    ModelRegistry.register_model(
+        "Gemma4ForCausalLM", "vllm_kunlun.models.gemma4:Gemma4ForCausalLM"
+    )
+
 
 def register_quant_method():
     """to do"""

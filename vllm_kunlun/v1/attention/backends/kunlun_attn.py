@@ -14,6 +14,7 @@
 # limitations under the License.
 # This file is a part of the vllm-kunlun project.
 #
+import copy
 from dataclasses import dataclass
 from itertools import accumulate
 from typing import (
@@ -669,6 +670,18 @@ class KunlunAttentionMetadataBuilder:
         )
         return attn_metadata
 
+    def update_block_table(
+        self,
+        metadata: KunlunMetadata,
+        blk_table: torch.Tensor,
+        slot_mapping: torch.Tensor,
+    ) -> KunlunMetadata:
+        """Update block table and slot mapping for a different KV cache group."""
+        new_metadata = copy.copy(metadata)
+        new_metadata.block_tables = blk_table
+        new_metadata.slot_mapping = slot_mapping
+        return new_metadata
+
     def can_run_in_cudagraph(
         self, common_attn_metadata: CommonAttentionMetadata
     ) -> bool:
@@ -776,25 +789,28 @@ class KunlunAttentionImpl(AttentionImpl[KunlunMetadata]):
             # Even if there are no new key/value pairs to cache,
             # we still need to break out key_cache and value_cache
             # i.e. for later use by paged attention
-            key_cache, value_cache = PagedAttention.split_kv_cache(
-                kv_cache, self.num_kv_heads, self.head_size
-            )
+            key_cache, value_cache = PagedAttention.split_kv_cache(kv_cache=kv_cache)
 
             if (key is not None) and (value is not None):
                 updated_slot_mapping = attn_metadata.slot_mapping
 
-                # Reshape the input keys and values and store them in the cache.
-                # If kv_cache is not provided, the new key and value tensors are
-                # not cached. This happens during the initial memory
-                value = value.contiguous()
-                kunlun_ops.reshape_and_cache_flash(
-                    key[: attn_metadata.num_actual_tokens],
-                    value[: attn_metadata.num_actual_tokens],
-                    key_cache,
-                    value_cache,
-                    updated_slot_mapping,
-                    BLHD_LAYOUT=False,
-                )
+                # Skip cache write for KV sharing layers: their cache is
+                # the target layer's cache and already contains correct values.
+                if self.kv_sharing_target_layer_name is None:
+                    # Reshape the input keys and values and store them in
+                    # the cache. If kv_cache is not provided, the new key
+                    # and value tensors are not cached. This happens during
+                    # the initial memory
+                    value = value.contiguous()
+                    key = key.contiguous()
+                    kunlun_ops.reshape_and_cache_flash(
+                        key[: attn_metadata.num_actual_tokens],
+                        value[: attn_metadata.num_actual_tokens],
+                        key_cache,
+                        value_cache,
+                        updated_slot_mapping,
+                        BLHD_LAYOUT=False,
+                    )
 
         assert attn_type == AttentionType.DECODER
         # Decoder self-attention supports chunked prefill.
@@ -808,6 +824,16 @@ class KunlunAttentionImpl(AttentionImpl[KunlunMetadata]):
             prefill_key = key[num_decode_tokens : attn_metadata.num_actual_tokens]
             prefill_value = value[num_decode_tokens : attn_metadata.num_actual_tokens]
 
+            # NOTE(kunlun): prefill_attention kernel internally applies
+            # 1/sqrt(head_dim) and multiplies by alpha. Compute alpha to
+            # achieve the desired effective scaling:
+            #   score = Q @ K^T * (1/sqrt(d)) * alpha
+            # We want: score = Q @ K^T * self.scale
+            # So: alpha = self.scale * sqrt(d) = self.scale / (1/sqrt(d))
+            import math
+
+            _prefill_alpha = self.scale * math.sqrt(self.head_size)
+
             # For hybrid Attention (Qwen3-Next.)
             if key_cache.is_contiguous():
                 tmp_block_tables = prefill_meta.block_tables
@@ -815,8 +841,12 @@ class KunlunAttentionImpl(AttentionImpl[KunlunMetadata]):
                 # For hybrid Attention (Qwen3-Next)
                 tmp_block_tables = prefill_meta.block_tables * 2
 
-            # Prefix cache
-            if prefill_meta.query_start_loc_host[-1] != prefill_meta.kv_lod_cpu[-1]:
+            # Prefix cache or KV sharing layers (must read K/V from cache)
+            is_kv_sharing = self.kv_sharing_target_layer_name is not None
+            if (
+                is_kv_sharing
+                or prefill_meta.query_start_loc_host[-1] != prefill_meta.kv_lod_cpu[-1]
+            ):
                 kunlun_ops.prefill_attention(
                     q=prefill_query,
                     k=key_cache,  # Key Cache [block_num, head, block_size, dim]
@@ -824,6 +854,7 @@ class KunlunAttentionImpl(AttentionImpl[KunlunMetadata]):
                     out=output[num_decode_tokens : attn_metadata.num_actual_tokens],
                     is_causal=True,
                     is_prefix_cache=True,
+                    alpha=_prefill_alpha,
                     block_table=tmp_block_tables,
                     context_qlen_lod_cpu=prefill_meta.query_start_loc_host,
                     context_qlen_lod_xpu=prefill_meta.query_start_loc,
@@ -831,6 +862,13 @@ class KunlunAttentionImpl(AttentionImpl[KunlunMetadata]):
                     context_kvlen_lod_xpu=prefill_meta.kv_lod_xpu,
                     alibi_slopes=self.alibi_slopes,
                     softmax_lse=None,
+                    swa_left=(
+                        self.sliding_window if self.sliding_window is not None else -1
+                    ),
+                    swa_right=0 if self.sliding_window is not None else -1,
+                    sink=(
+                        self.sinks.to(torch.float32) if self.sinks is not None else None
+                    ),
                 )
             else:
                 kunlun_ops.prefill_attention(
@@ -839,6 +877,7 @@ class KunlunAttentionImpl(AttentionImpl[KunlunMetadata]):
                     v=prefill_value,
                     out=output[num_decode_tokens : attn_metadata.num_actual_tokens],
                     is_causal=True,
+                    alpha=_prefill_alpha,
                     context_qlen_lod_cpu=prefill_meta.query_start_loc_host,
                     context_qlen_lod_xpu=prefill_meta.query_start_loc,
                     alibi_slopes=self.alibi_slopes,
@@ -883,7 +922,7 @@ class KunlunAttentionImpl(AttentionImpl[KunlunMetadata]):
                     max_context_len=131072,
                     head_num=self.num_heads,
                     head_dim=self.head_size,
-                    scale=0.0,
+                    scale=self.scale,
                     kv_head_num=self.num_kv_heads,
                     block_size=key_cache.shape[2],
                     max_num_blocks_per_seq=decode_meta.block_tables.shape[1],
@@ -928,7 +967,7 @@ class KunlunAttentionImpl(AttentionImpl[KunlunMetadata]):
                     max_context_len=decode_meta.max_model_len,
                     head_num=self.num_heads,
                     head_dim=self.head_size,
-                    scale=0.0,
+                    scale=self.scale,
                     kv_head_num=self.num_kv_heads,
                     block_size=key_cache.shape[2],
                     max_num_blocks_per_seq=decode_meta.block_tables.shape[1],
