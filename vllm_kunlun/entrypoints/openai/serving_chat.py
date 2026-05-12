@@ -92,7 +92,7 @@ class OpenAIServingChat(OpenAIServing):
         # all_previous_token_ids will not be used twice in the same iteration.
         if tool_choice_auto or self.reasoning_parser:
             # These are only required in "auto" tool choice case
-            all_previous_token_ids = [[]] * num_choices
+            all_previous_token_ids = [[] for _ in range(num_choices)]
             # For reasoning parser and tool call all enabled
             added_content_delta_arr = [False] * num_choices
             reasoning_end_arr = [False] * num_choices
@@ -109,7 +109,23 @@ class OpenAIServingChat(OpenAIServing):
 
         try:
             if self.reasoning_parser:
-                reasoning_parser = self.reasoning_parser(tokenizer)
+                # Allocate one parser instance per choice to avoid cross-choice
+                # streaming state leakage when request.n > 1.
+                reasoning_parsers = [
+                    self.reasoning_parser(tokenizer) for _ in range(num_choices)
+                ]
+                # Primary reference retained for backwards-compat with code
+                # paths that only consult a single parser (e.g. is_reasoning_end
+                # on prompt tokens, which is stateless).
+                reasoning_parser = reasoning_parsers[0]
+                # Give the parser a chance to mutate the request (e.g. Gemma4
+                # forces skip_special_tokens=False).
+                try:
+                    request = reasoning_parser.adjust_request(request)
+                except AttributeError:
+                    pass
+            else:
+                reasoning_parsers = [None] * num_choices
         except RuntimeError as e:
             logger.exception("Error in reasoning parser creation.")
             data = self.create_streaming_error_response(str(e))
@@ -120,8 +136,8 @@ class OpenAIServingChat(OpenAIServing):
         try:
             if tool_choice_auto and self.tool_parser:
                 tool_parsers: list[Optional[ToolParser]] = [
-                    self.tool_parser(tokenizer)
-                ] * num_choices
+                    self.tool_parser(tokenizer) for _ in range(num_choices)
+                ]
             else:
                 tool_parsers = [None] * num_choices
         except Exception as e:
@@ -227,6 +243,11 @@ class OpenAIServingChat(OpenAIServing):
                 for output in res.outputs:
                     i = output.index
                     tool_parser = tool_parsers[i]
+                    # Use a per-choice reasoning parser so streaming state
+                    # (e.g. Gemma4's `_in_reasoning` / prefix buffer) does
+                    # not leak across choices when request.n > 1.
+                    if self.reasoning_parser:
+                        reasoning_parser = reasoning_parsers[i]
 
                     if finish_reason_sent[i]:
                         continue
