@@ -148,3 +148,12 @@ def register_reasoning_parser():
     from .reasoning import register_reasoning_parser as _reg_reasoning_parser
 
     _reg_reasoning_parser()
+
+
+def register_tool_parser():
+    """Register tool parsers for inference."""
+    from .entrypoints.openai.tool_parsers import (
+        register_tool_parser as _reg_tool_parser,
+    )
+
+    _reg_tool_parser()
