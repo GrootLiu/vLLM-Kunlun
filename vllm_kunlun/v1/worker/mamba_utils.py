@@ -51,6 +51,5 @@ if not getattr(_upstream, "_kunlun_batch_memcpy_patched", False):
     _upstream.batch_memcpy = batch_memcpy
     _upstream._kunlun_batch_memcpy_patched = True
     logger.info(
-        "[KunlunPlugin] batch_memcpy patched "
-        "in vllm_kunlun/v1/worker/mamba_utils.py"
+        "[KunlunPlugin] batch_memcpy patched in vllm_kunlun/v1/worker/mamba_utils.py"
     )
