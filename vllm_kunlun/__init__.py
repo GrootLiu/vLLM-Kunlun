@@ -315,8 +315,10 @@ def register():
 
     # --- import wrapper & patch utils ---
     try:
-        from .schema import direct_register_custom_op  # noqa: F401
-        from .schema import patch_annotations_for_schema  # noqa: F401
+        from .schema import (  # noqa: F401
+            direct_register_custom_op,
+            patch_annotations_for_schema,
+        )
 
         logger.info("[KunlunPlugin] vllm_utils_wrapper loaded and patched")
     except Exception:
