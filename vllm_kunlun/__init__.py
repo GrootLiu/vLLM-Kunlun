@@ -153,6 +153,22 @@ _register_post_import_hook(
 )
 
 
+# --- hook 3b: batch_memcpy in vllm.v1.worker.mamba_utils ------------------
+# Replace the upstream hand-written Triton kernel with xspeedgate_ops.
+def _mamba_utils_applied(mod):
+    fn = getattr(mod, "batch_memcpy", None)
+    return fn is None or getattr(mod, "_kunlun_batch_memcpy_patched", False)
+
+
+def _mamba_utils_apply(mod):
+    import vllm_kunlun.v1.worker.mamba_utils  # noqa: F401  (self-applies on import)
+
+
+_register_post_import_hook(
+    "vllm.v1.worker.mamba_utils", _mamba_utils_applied, _mamba_utils_apply
+)
+
+
 # --- hook 4: apply_grammar_bitmask in vllm.v1.structured_output.utils -----
 # Replace the upstream xgrammar auto backend with torch_native on Kunlun XPU.
 def _grammar_bitmask_applied(mod):
@@ -299,8 +315,10 @@ def register():
 
     # --- import wrapper & patch utils ---
     try:
-        from .schema import direct_register_custom_op  # noqa: F401
-        from .schema import patch_annotations_for_schema  # noqa: F401
+        from .schema import (  # noqa: F401
+            direct_register_custom_op,
+            patch_annotations_for_schema,
+        )
 
         logger.info("[KunlunPlugin] vllm_utils_wrapper loaded and patched")
     except Exception:
