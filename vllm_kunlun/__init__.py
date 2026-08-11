@@ -427,7 +427,7 @@ def register():
         from .schema import direct_register_custom_op  # noqa: F401
         from .schema import patch_annotations_for_schema  # noqa: F401
 
-        logger.info("[KunlunPlugin] vllm_utils_wrapper loaded and patched")
+        logger.info("[KunlunPlugin] schema helpers loaded and patched")
     except Exception:
         logger.exception("[KunlunPlugin] wrapper import/patch failed")
         raise
