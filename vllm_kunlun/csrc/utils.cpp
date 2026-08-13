@@ -1,5 +1,3 @@
-#include "xops.h"
-#include "dispatch_utils.h"
 #include <torch/extension.h>
 torch::Tensor weak_ref_tensor(torch::Tensor& tensor) {
     // Ensure tensor is on CUDA
