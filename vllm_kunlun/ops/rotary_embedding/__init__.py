@@ -31,9 +31,6 @@ OOT Mechanism:
 
 import logging
 
-from vllm_kunlun.ops.rotary_embedding.gemma4_rope import (  # noqa: F401
-    Gemma4RotaryEmbedding,
-)
 from vllm_kunlun.ops.rotary_embedding.kunlun_deepseek_rope import (  # noqa: F401
     KunlunDeepseekScalingRotaryEmbedding,
 )
