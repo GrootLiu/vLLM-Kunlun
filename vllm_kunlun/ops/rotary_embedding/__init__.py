@@ -44,8 +44,10 @@ from vllm_kunlun.ops.rotary_embedding.utils import Split_Norm_Rope  # noqa: F401
 
 logger = logging.getLogger("vllm_kunlun.ops.rotary_embedding")
 
-# Log that OOT registration is complete
+# Importing the modules above executes their registration decorators. This
+# confirms that the registrations were loaded, not that an OOT class has
+# already been instantiated by vLLM.
 logger.info(
-    "[KunlunOOT] Registered KunlunRotaryEmbedding, KunlunMRotaryEmbedding, "
-    "KunlunDeepseekScalingRotaryEmbedding via CustomOp.register_oot"
+    "[KunlunOOT] Loaded RotaryEmbedding, MRotaryEmbedding, and "
+    "DeepseekScalingRotaryEmbedding OOT registrations"
 )
