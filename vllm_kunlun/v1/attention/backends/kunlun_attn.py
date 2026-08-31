@@ -953,9 +953,9 @@ class KunlunAttentionImpl(AttentionImpl[KunlunMetadata]):
                 assert query_seq_len % batch_size == 0
                 qlen = query_seq_len // batch_size
                 # kunlun_ops.speculative_attention kernel hard limit.
-                assert qlen <= 32, (
-                    f"speculative_attention supports qlen <= 32, got {qlen}"
-                )
+                assert (
+                    qlen <= 32
+                ), f"speculative_attention supports qlen <= 32, got {qlen}"
                 out = output[:num_decode_tokens]
                 assert out.is_contiguous()
 

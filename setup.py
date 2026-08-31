@@ -40,7 +40,15 @@ class CustomBuildExt(BuildExtension):
         for ext in self.extensions:
             ext_path = self.get_ext_fullpath(ext.name)
             file_name = os.path.basename(ext_path)
-            target_path = os.path.join("vllm_kunlun", file_name)
+            target_path = os.path.join(ROOT_DIR, "vllm_kunlun", file_name)
+
+            # In editable (PEP 660) builds, build_ext runs inplace and
+            # ext_path already IS the in-tree file; copying it onto
+            # itself (after os.remove) would delete the freshly built
+            # .so and then fail with FileNotFoundError. Skip the copy.
+            if os.path.abspath(ext_path) == os.path.abspath(target_path):
+                print(f"[BuildExt] Inplace build, skip copy: {ext_path}")
+                continue
 
             if os.path.exists(target_path):
                 os.remove(target_path)

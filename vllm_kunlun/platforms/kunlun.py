@@ -272,7 +272,33 @@ class KunlunPlatform(Platform):
             # Deepseek-V2-lite model.
             # Note: use_inductor removed in v0.15.1, use backend="eager" instead
             vllm_config.compilation_config.backend = "eager"
-        # v0.15.1: set backend="eager" to avoid inductor/Triton
+        # Kunlun platform compilation strategy when CUDA Graph is enabled.
+        #
+        # Note: `backend` here selects the compiler used for EACH split
+        # subgraph under VLLM_COMPILE (piecewise) mode; it is NOT the overall
+        # Dynamo backend. The overall backend is always VllmBackend (which
+        # handles graph capture, splitting and CUDA Graph capture/replay),
+        # regardless of this field. Only two values are valid:
+        #
+        # - "eager" (the plugin's default): no code generation for subgraphs;
+        #   ops inside each piece run as-is on XPU kernels. Chosen to bypass
+        #   the Inductor -> Triton codegen path, since the triton-xpu port is
+        #   not fully validated for Inductor-generated kernels (coverage /
+        #   correctness). Performance comes from hand-written custom kernels
+        #   (see custom_ops below) plus piecewise CUDA Graph replay, not from
+        #   a compiler.
+        # - "inductor": subgraphs are compiled by Inductor into Triton
+        #   kernels (built for Kunlun via the triton-xpu backend), which can
+        #   fuse scattered elementwise ops inside a piece. Experimental on
+        #   this platform; fall back to "eager" on compile crashes or
+        #   accuracy issues.
+        #
+        # custom_ops=["all"]: route RMSNorm / SiLU-mul etc. to hand-written
+        #   Kunlun kernels instead of compiler-generated code. This is the
+        #   main reason performance stays acceptable with the "eager"
+        #   backend (fusion gains are already provided by these kernels).
+        # enable_fusion=False: disable vLLM's fusion passes (e.g.
+        #   RMSNorm+quant fusion), which are not adapted for Kunlun.
         if vllm_config.compilation_config.cudagraph_mode != CUDAGraphMode.NONE:
             vllm_config.compilation_config.custom_ops = ["all"]
             vllm_config.compilation_config.pass_config.enable_fusion = False
