@@ -8,6 +8,4 @@ export XMLIR_FORCE_USE_XPU_GRAPH=1 # 优化图间sync
 export XPU_USE_MOE_SORTED_THRES=128 # Moe sort threshold
 export VLLM_HOST_IP=$(hostname -i)
 export XMLIR_ENABLE_MOCK_TORCH_COMPILE=false
-VLLM_USE_V1=1
-##默认值为1，设置为0启用QWN3融合大算子
-USE_ORI_ROPE=1
+export XMLIR_DYNAMO_WORKAROUND=1
