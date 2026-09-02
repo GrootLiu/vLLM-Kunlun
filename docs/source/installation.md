@@ -99,7 +99,7 @@ uv pip install --no-build-isolation --no-deps .
 ### Install the KL3-customized build of PyTorch
 
 ```
-wget -O https://klx-sdk-release-public.su.bcebos.com/kunlun2jituan/20260806/xpytorch-cp310-torch290-ubuntu2004-x64.run
+wget -O xpytorch-cp310-torch290-ubuntu2004-x64.run https://klx-sdk-release-public.su.bcebos.com/kunlun2jituan/20260806/xpytorch-cp310-torch290-ubuntu2004-x64.run
 bash xpytorch-cp310-torch290-ubuntu2004-x64.run --noexec --target xpytorch_unpack && cd xpytorch_unpack/ && \
 sed -i 's/pip/uv pip/g; s/CONDA_PREFIX/VIRTUAL_ENV/g' setup.sh && bash setup.sh
 ```
@@ -111,7 +111,7 @@ sed -i 's/pip/uv pip/g; s/CONDA_PREFIX/VIRTUAL_ENV/g' setup.sh && bash setup.sh
 uv pip install "https://klx-sdk-release-public.su.bcebos.com/kunlun2jituan/20260806/kunlun_ops-0.1.227%2B2b100f96-cp310-cp310-linux_x86_64.whl"
 
 # Install xspeedgate_ops
-uv pip install "https://vllm-ai-models.bj.bcebos.com/aiak_share/20260818/torch29/xspeedgate_ops-1.5.0%2Bb1629e2.torch29-cp310-cp310-linux_x86_64.whl""
+uv pip install "https://vllm-ai-models.bj.bcebos.com/aiak_share/20260818/torch29/xspeedgate_ops-1.5.0%2Bb1629e2.torch29-cp310-cp310-linux_x86_64.whl"
 ```
 
 ## Quick Start
