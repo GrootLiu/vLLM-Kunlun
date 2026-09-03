@@ -30,8 +30,8 @@ post-import 补丁和安装期文件覆盖，把 vLLM 的 CUDA 代码路径改�
 
 理解本仓库最重要的一句话：**它对 vLLM 自称自己是 CUDA**
 （`device_name = "cuda"`、`dispatch_key = "CUDA"`、`dist_backend = "nccl"`），
-底层由 `torch_xmlir`（xpytorch）把 `torch.cuda.*` 映射到 XPU。
-所有"为什么这里写着 cuda"的疑问都由此解释。
+底层由 [`torch_xmlir` 运行时与 PyTorch 兼容层](torch-xmlir/README.md)把 `torch.cuda.*` 映射到 XPU。
+所有"为什么这里写着 cuda"的疑问都由此解释。该子 Wiki 记录 XMLIR 运行时构建的行为快照；本 Wiki 仍以 vLLM-Kunlun 源码事实为准。
 
 ## 从哪里开始读
 
@@ -39,6 +39,7 @@ post-import 补丁和安装期文件覆盖，把 vLLM 的 CUDA 代码路径改�
 | --- | --- |
 | 插件怎么被加载、四种覆盖手段的区别 | [architecture.md](architecture.md) |
 | `KunlunPlatform` 对 vLLM 承诺了什么、强制改写了哪些配置 | [platform-contract.md](platform-contract.md) |
+| `torch.cuda` 如何映射到 XPU、Dispatcher 和运行时如何工作 | [torch-xmlir/README.md](torch-xmlir/README.md) |
 | torch.compile / 图捕获在 XPU 上怎么跑 | [kunlun-graph.md](kunlun-graph.md) |
 | 4 个 attention backend、KV cache 布局、前缀缓存 | [attention-backend.md](attention-backend.md) |
 | GDN / FLA / Mamba 线性注意力路径 | [linear-attention.md](linear-attention.md) |

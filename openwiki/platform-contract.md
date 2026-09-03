@@ -37,7 +37,7 @@ dispatch_key = "CUDA"
 
 `device_type` property 也返回 `"cuda"`（`#L31-L38`）。
 这套伪装让 vLLM 里所有 `torch.cuda.*` / NCCL / Ray GPU 资源声明原封不动可用，
-底层由 `torch_xmlir` 转到 XPU。
+底层由 [`torch_xmlir` 运行时与 PyTorch 兼容层](torch-xmlir/README.md)转到 XPU。
 
 但身份判定函数是**诚实的**：
 
@@ -75,7 +75,7 @@ dispatch_key = "CUDA"
 
 1. **"Kunlun Graph" 不是一个新类。**`get_piecewise_backend_cls` 与
    `get_static_graph_wrapper_cls` 都返回上游 CUDA 的实现，图捕获走的是
-   `torch_xmlir` 的 CUDA graph shim。详见 [kunlun-graph.md](kunlun-graph.md)。
+   [`torch_xmlir` 的 CUDA Graph shim](torch-xmlir/05-device-runtime.md)。vLLM 侧的图执行约束详见 [kunlun-graph.md](kunlun-graph.md)。
 2. **`get_device_total_memory` 返回宿主内存**，不是显存。凡是用它推算
    KV cache 容量的上游逻辑在这里都不可信，实际容量靠
    `--gpu-memory-utilization` 手工调（tutorial 里的取值在 0.95~0.97）。

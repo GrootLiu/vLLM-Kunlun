@@ -30,8 +30,8 @@ claims: .claims/kunlun-graph.json
 - `get_piecewise_backend_cls()` → `vllm.compilation.cuda_piecewise_backend.CUDAPiecewiseBackend`（`platforms/kunlun.py#L128-L130`）
 - `get_static_graph_wrapper_cls()` → `vllm.compilation.cuda_graph.CUDAGraphWrapper`（`#L132-L134`）
 
-真正的 XPU 化发生在两个更低的层次：`torch_xmlir` 提供 CUDA graph 的
-shim，以及本仓库替换掉 `vllm.compilation.wrapper` 这个模块。
+真正的 XPU 化发生在两个更低的层次：[`torch_xmlir` 的 CUDA Graph shim](torch-xmlir/05-device-runtime.md)
+以及本仓库替换掉的 `vllm.compilation.wrapper` 模块。`torch_xmlir` 对 `torch.compile` 和 Dynamo 的运行时快照见 [torch-xmlir/08-compile-dynamo.md](torch-xmlir/08-compile-dynamo.md)。
 
 ## 2. `compilation/wrapper.py`：被裁剪过的 dynamo
 
