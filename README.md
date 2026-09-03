@@ -4,6 +4,7 @@
   <a href="https://vllm-kunlun.readthedocs.io/en/latest/"><b>📖 Documentation</b></a> |
   <a href="https://vllm-kunlun.readthedocs.io/en/latest/quick_start.html"><b>🚀 Quick Start</b></a> |
   <a href="https://vllm-kunlun.readthedocs.io/en/latest/installation.html"><b>📦 Installation</b></a> |
+  <a href="https://vllm-kunlun.com/"><b>🌐 Community Website</b></a> |
   <a href="https://join.slack.com/t/vllm-kunlun/shared_invite/zt-3iinb8u5z-FcqZKbNNdMJ_32fHmipzvw"><b>💬 Slack</b></a>
 </p>
 
@@ -18,7 +19,7 @@
 ---
 
 ## Latest News 🔥
-
+- [2026/09] The [vLLM-Kunlun community website](https://vllm-kunlun.com/) is now live. Visit it for project updates, model support, performance benchmarks, installation guidance, and XPU operator artifacts.
 - [2026/07] 🚧 **v0.25.1 under development** — Added Qwen3.5 / Qwen3.5-MoE, Gemma4 (text and multimodal), GLM MoE DSA, and DFlash speculative decoding
 - [2026/02] ⚡ **Performance optimizations** — Fused MoE with small batches, optimized attention metadata building, Multi-LoRA inference achieves 80%+ of non-LoRA performance
 - [2026/02] 🔧 **DeepSeek-V3.2 MTP support** — Added MTP (Multi-Token Prediction) for DeepSeek-V3.2, with RoPE and decoding stage kernel optimizations
