@@ -10,10 +10,10 @@
   "claims": [
     {
       "id": "model-001",
-      "statement": "models/__init__.py 注册 12 个 OOT 模型；文件开头有 # TODO Remove all of models registration below，说明这些 OOT 实现被视为临时状态、上游化是长期方向。",
+      "statement": "models/__init__.py 注册 10 个 OOT 模型；文件开头有 # TODO Remove all of models registration below，说明这些 OOT 实现被视为临时状态、上游化是长期方向。",
       "kind": "fact",
       "evidence": [
-        "repo://vllm_kunlun/models/__init__.py#L14-L64",
+        "repo://vllm_kunlun/models/__init__.py#L14-L54",
         "repo://vllm_kunlun/models/__init__.py#L6"
       ],
       "confidence": "high"
@@ -45,9 +45,12 @@
     },
     {
       "id": "model-005",
-      "statement": "gemma4.py 把 self.scaling 设为 1.0，原因是 XPU 的 prefill_attention kernel 内部已无条件乘了 1/sqrt(head_dim)，再乘一次就错。这是“硬件 kernel 语义与上游约定不同”的典型案例。",
-      "kind": "caveat",
-      "evidence": ["repo://vllm_kunlun/models/gemma4.py#L292-L295"],
+      "statement": "Gemma4 不再注册 Kunlun 专用 OOT 模型，而是使用上游 vLLM 实现；Attention 缩放差异由 Kunlun Attention 后端统一处理。",
+      "kind": "fact",
+      "evidence": [
+        "repo://vllm_kunlun/models/__init__.py#L14-L54",
+        "repo://vllm_kunlun/v1/attention/backends/kunlun_attn.py"
+      ],
       "confidence": "high"
     },
     {

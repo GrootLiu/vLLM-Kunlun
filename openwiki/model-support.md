@@ -2,7 +2,7 @@
 type: reference
 title: 模型支持
 summary: >-
-  12 个注册模型各自为什么需要 OOT 实现，DeepSeek V3.2 的检测方式与 MTP，
+  10 个注册模型各自为什么需要 OOT 实现，DeepSeek V3.2 的检测方式与 MTP，
   LoRA 的现状，以及官方 tutorial 的实际启动命令（全部 TP-only）。
 generated:
   by: hand-authored (Claude Code, OpenWiki OKF v0.2 conventions)
@@ -12,9 +12,9 @@ evidence_version:
   ref: v0.25.1-dev
   commit: c53e090ff8800f586bf9e36e0d876779981bfb20
 sources:
-- repo://vllm_kunlun/models/__init__.py#L6-L64
+- repo://vllm_kunlun/models/__init__.py#L6-L54
 - repo://vllm_kunlun/models/deepseek_v2.py#L472-L655
-- repo://vllm_kunlun/models/gemma4.py#L292-L295
+- repo://vllm_kunlun/v1/attention/backends/kunlun_attn.py
 - repo://vllm_kunlun/models/qwen3_5.py#L84-L88
 - repo://vllm_kunlun/lora/punica_wrapper/punica_kunlun.py#L70-L545
 - repo://vllm_kunlun/lora/ops/kunlun_ops/lora_ops.py
@@ -29,7 +29,7 @@ claims: .claims/model-support.json
 
 一个模型在 Kunlun 上跑起来可能依赖四类改动，读代码前先分清：
 
-1. **完整 OOT 模型实现** —— `models/__init__.py#L14-L64` 里 12 个
+1. **完整 OOT 模型实现** —— `models/__init__.py#L14-L54` 里 10 个
    `ModelRegistry.register_model` 条目。
 2. **[整模块重定向](architecture.md#41-整模块重定向7-个)** —— 7 个。
 3. **[post-import 补丁](architecture.md#42-post-import-就地补丁8-个)** —— 8 个。
@@ -52,8 +52,9 @@ claims: .claims/model-support.json
 | `GlmMoeDsaForCausalLM` | GLM MoE + DSA |
 | `Qwen3_5MoeForConditionalGeneration` | 继承 qwen3_next |
 | `Qwen3_5ForConditionalGeneration` | 同上 |
-| `Gemma4ForCausalLM` | — |
-| `Gemma4ForConditionalGeneration` | 多模态 |
+
+Gemma4 文本和多模态模型仍受支持，但不再注册 Kunlun 专用 OOT 模型，
+而是直接使用上游 vLLM 的实现；设备差异由 Kunlun Attention 后端处理。
 
 > ⚠️ `qwen3_dflash.py` 里的 `DFlashQwen3ForCausalLM` **不在这张表里**，
 > 走不通正常注册流程。见 [spec-decode-and-sampling.md](spec-decode-and-sampling.md)。
@@ -65,13 +66,13 @@ claims: .claims/model-support.json
 | `deepseek_v2.py` | MLA + DSA 稀疏 indexer（包装成 `vllm::sparse_attn_indexer_vllm_kunlun`，`#L472-L655`） |
 | `qwen3_next.py` | FLA / Mamba 算子替换 + `get_masked_input_and_mask_kunlun` |
 | `qwen3_5.py` | 继承 qwen3_next，改成四路 QKVZ projection |
-| `gemma4.py` | `self.scaling = 1.0`（`#L292-L295`），原因：**XPU 的 prefill_attention kernel 内部无条件地乘了 1/sqrt(head_dim)**，再乘一次就错了 |
 | `gpt_oss.py` | — | attention sink + 交替滑动窗口 |
 | `mimo_v2_flash.py` | — | V 的 head dim 与 QK 不同，需要 pad/slice |
 | `seed_oss.py` | — | 仅为把 embedding 路由到 OOT `VocabParallelEmbedding` |
 
-`gemma4.py#L292-L295` 那条注释是"硬件 kernel 语义与上游约定不同"
-的典型案例，做数值对齐时值得优先怀疑同类问题。
+Gemma4 原本在本地模型中处理的 Attention 缩放差异现已统一下沉到
+`v1/attention/backends/kunlun_attn.py`：后端根据目标缩放计算 prefill kernel
+的 `alpha`，上游模型无需再包含 Kunlun 专用缩放逻辑。
 
 ## 4. DeepSeek V3.2（DSA）的识别方式
 
