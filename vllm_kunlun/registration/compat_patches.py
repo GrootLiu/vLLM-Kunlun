@@ -60,6 +60,33 @@ def _apply_qwen3_vl_patch(module: ModuleType) -> None:
     )
 
 
+# --- vllm.model_executor.layers.minimax_rms_norm.rms_norm_tp: no Triton ---
+
+
+def _minimax_rms_norm_tp_applied(module: ModuleType) -> bool:
+    """Return whether MiniMax's unsupported CUDA and Triton paths are disabled."""
+    return (
+        not getattr(module, "HAS_TRITON", False)
+        and getattr(module, "_MINIMAX_FUSED_AR_RMS_QK", None) is None
+    )
+
+
+def _apply_minimax_rms_norm_tp_patch(module: ModuleType) -> None:
+    """Disable MiniMax CUDA fusion and use the eager QK-RMSNorm fallback.
+
+    MiniMax selects the fused CUDA all-reduce/RMSNorm custom operator when
+    ``_MINIMAX_FUSED_AR_RMS_QK`` is available.  Otherwise its fallback uses
+    Triton when ``HAS_TRITON`` is true.  Kunlun supports neither path, so both
+    gates must be disabled to reach the eager all-reduce plus RMSNorm path.
+    """
+    module.HAS_TRITON = False
+    if hasattr(module, "_MINIMAX_FUSED_AR_RMS_QK"):
+        module._MINIMAX_FUSED_AR_RMS_QK = None
+    logging.getLogger("vllm_kunlun").info(
+        "[KunlunPlugin] disabled MiniMax RMSNorm Triton and fused CUDA paths"
+    )
+
+
 # --- vllm.v1.worker.block_table: patch slot-mapping computation -----------
 
 
@@ -203,6 +230,11 @@ DEFAULT_HOOKS = (
         "vllm.model_executor.models.qwen3_vl",
         _qwen3_vl_applied,
         _apply_qwen3_vl_patch,
+    ),
+    (
+        "vllm.model_executor.layers.minimax_rms_norm.rms_norm_tp",
+        _minimax_rms_norm_tp_applied,
+        _apply_minimax_rms_norm_tp_patch,
     ),
     ("vllm.v1.worker.block_table", _block_table_applied, _apply_block_table_patch),
     (
