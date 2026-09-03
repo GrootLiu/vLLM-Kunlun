@@ -59,7 +59,7 @@ graph TD
     S1["1. stub_vllm_cuda_extensions<br/>vllm._C / vllm._moe_C 置空 ModuleType"]
     S2["2. register_custom_ops<br/>按文件路径加载 ops/_custom_ops.py"]
     S3["3. load_spec_decode_compat<br/>dflash / eagle 可选 import"]
-    S4["4. load_native_extension<br/>from .. import _kunlun（缺失只 warn）"]
+    S4["4. register_weak_ref_tensor<br/>_C::weak_ref_tensor → xspeedgate_ops"]
     S5["5. load_schema_helpers<br/>patch direct_register_custom_op"]
     S6["6. install_import_hook + dispatch_hooks"]
     S7["7. patch_memory_info<br/>torch.accelerator.get_memory_info"]
@@ -79,8 +79,11 @@ graph TD
 `vllm_kunlun.v1.sample.spec_decode.dflash` 和 `.eagle`，纯粹为副作用
 （它们在 import 时把 `EagleProposer.propose` 换掉，见 [attention-backend.md](attention-backend.md)）。
 
-**阶段 4 —— 原生扩展。**`from .. import _kunlun`（`#L136-L149`）。缺失只 warn，
-因为 `_kunlun` 只提供 `weak_ref_tensor`，而仓库里没有 Python 调用方。
+**阶段 4 —— 补 `_C::weak_ref_tensor`。**`bootstrap.py#L137-L164` 用
+`torch.library.Library("_C", "FRAGMENT")` 把这个名字指到
+`torch.ops.xspeedgate_ops.weak_ref_tensor.default`（CUDA dispatch key）。
+阶段 1 把 `vllm._C` 置空后该命名空间是空的，而 vLLM 的 CUDA graph capture
+（`vllm/utils/torch_utils.py` 的 `weak_ref_tensor`）硬编码调用它。
 
 **阶段 5 —— schema 归一化。**`schema.py#L117` 把
 `vllm.utils.torch_utils.direct_register_custom_op` 换成自己的版本
@@ -221,10 +224,10 @@ fake impl `#L255-L257`，调用点 `#L110-L112`）、
 `gdn_attention_core`（`models/qwen3_next.py#L1471-L1508`）、
 `sparse_attn_indexer_vllm_kunlun`（`models/deepseek_v2.py#L472-L473`，`#L637-L655`）。
 
-`vllm_kunlun/csrc/utils.cpp` 只提供 `weak_ref_tensor`，且被注册了两次
-（`TORCH_LIBRARY(_C, ...)` 和 `PYBIND11_MODULE(_kunlun, ...)`，`#L26-L31`），
-经 `setup.py#L25-L34` 的 `CppExtension` 编译。**仓库内没有 Python 调用方**——
-`utils.py#L13` 用的是 vLLM 自带的版本。
+`_C::weak_ref_tensor` 不来自 C++ 扩展：`bootstrap.register_weak_ref_tensor`
+在 Python 侧把它转发到 `torch.ops.xspeedgate_ops.weak_ref_tensor`
+（要求 `xspeedgate_ops>=1.5.0`）。**仓库内没有 Python 调用方**——
+`utils.py#L13` 用的是 vLLM 自带的版本，真正的消费者是 vLLM 的 graph capture。
 
 ## 6. 通信层
 

@@ -1,9 +1,7 @@
 import os
 import re
-import shutil
 
 from setuptools import find_packages, setup
-from torch.utils.cpp_extension import BuildExtension, CppExtension
 
 ROOT_DIR = os.path.dirname(__file__)
 
@@ -22,40 +20,6 @@ def get_version():
     return match.group(1)
 
 
-ext_modules = [
-    CppExtension(
-        name="vllm_kunlun._kunlun",
-        sources=["vllm_kunlun/csrc/utils.cpp"],
-        include_dirs=[
-            "vllm_kunlun/csrc",
-        ],
-        extra_compile_args=["-O3"],
-    )
-]
-
-
-class CustomBuildExt(BuildExtension):
-    def run(self):
-        super().run()
-        for ext in self.extensions:
-            ext_path = self.get_ext_fullpath(ext.name)
-            file_name = os.path.basename(ext_path)
-            target_path = os.path.join(ROOT_DIR, "vllm_kunlun", file_name)
-
-            # In editable (PEP 660) builds, build_ext runs inplace and
-            # ext_path already IS the in-tree file; copying it onto
-            # itself (after os.remove) would delete the freshly built
-            # .so and then fail with FileNotFoundError. Skip the copy.
-            if os.path.abspath(ext_path) == os.path.abspath(target_path):
-                print(f"[BuildExt] Inplace build, skip copy: {ext_path}")
-                continue
-
-            if os.path.exists(target_path):
-                os.remove(target_path)
-            shutil.copyfile(ext_path, target_path)
-            print(f"[BuildExt] Copied {ext_path} -> {target_path}")
-
-
 if __name__ == "__main__":
 
     setup(
@@ -65,12 +29,7 @@ if __name__ == "__main__":
         license="Apache 2.0",
         description="vLLM Kunlun3 backend plugin",
         packages=find_packages(exclude=("docs", "examples", "tests*")),
-        package_data={"vllm_kunlun": ["_kunlun.so", "so/*.so", "include/*.h"]},
         python_requires=">=3.10",
-        ext_modules=ext_modules,
-        cmdclass={
-            "build_ext": CustomBuildExt,
-        },
         entry_points={
             "vllm.platform_plugins": ["kunlun = vllm_kunlun:register"],
             "vllm.general_plugins": [

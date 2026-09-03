@@ -49,7 +49,7 @@ claims: .claims/build-and-install.json
 | 组件 | 版本 | 形式 |
 | --- | --- | --- |
 | `kunlun_ops` | `0.1.58+ee39020a` | wheel |
-| `xspeedgate_ops` | `1.1.0+53992ca` | wheel |
+| `xspeedgate_ops` | `1.5.0+`（最低版本） | wheel |
 | `cocopod` | `1.1.0` | wheel |
 | `xpytorch`（提供 `torch_xmlir`） | — | `.run` 安装包 |
 
@@ -87,12 +87,13 @@ graph TD
 
 ## 4. `build.sh` 不编译任何东西
 
-`build.sh#L22-L23` 只是把源码树打成 tarball。真正需要编译的只有
-`vllm_kunlun/csrc/utils.cpp`（提供 `weak_ref_tensor`），由 `setup.py#L25-L34`
-的 `CppExtension` 处理——而**仓库里没有 Python 调用方**
-（`utils.py#L13` 用的是 vLLM 自带版本）。
+`build.sh#L22-L23` 只是把源码树打成 tarball。插件**已经没有 C++ 扩展**了：
+原先唯一需要编译的 `vllm_kunlun/csrc/utils.cpp`（提供 `_C::weak_ref_tensor`）
+已删除，改由 `bootstrap.register_weak_ref_tensor` 在 Python 侧转发到
+`torch.ops.xspeedgate_ops.weak_ref_tensor`（要求 `xspeedgate_ops>=1.5.0`），
+所以安装不再需要编译器。
 
-也就是说：**本插件基本上是纯 Python**，所有 kernel 都在厂商 wheel 里。
+也就是说：**本插件是纯 Python**，所有 kernel 都在厂商 wheel 里。
 `ci.yml`（百度内部 CI）也只是 `sh build.sh`。
 
 ## 5. `setup_env.sh`

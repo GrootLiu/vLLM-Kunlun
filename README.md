@@ -230,12 +230,11 @@ vllm-kunlun/
 │   ├── tool_parsers/          # Tool parser registration
 │   ├── compilation/           # Torch compile wrapper for Kunlun Graph
 │   ├── transformers_utils/    # transformers config/tokenizer adaptations
-│   ├── csrc/                  # C++ extensions (custom kernels)
 │   └── config/                # Model configuration overrides
 ├── tests/                     # Test suite
 ├── docs/                      # Documentation (Sphinx-based, ReadTheDocs hosted)
 ├── ci/                        # CI pipeline configurations
-├── setup.py                   # Legacy build script (with C++ extensions)
+├── setup.py                   # Legacy build script
 └── pyproject.toml             # Modern Python build configuration (hatchling)
 ```
 

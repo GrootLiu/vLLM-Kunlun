@@ -77,8 +77,7 @@ uv pip install vllm==|pip_vllm_version| --no-build-isolation --no-deps
 ```
 
 ### Build and Install
-Navigate to the vllm-kunlun directory and install the package. This builds the
-native `_kunlun` extension during installation:
+Navigate to the vllm-kunlun directory and install the package:
 
 ```{code-block} bash
 :substitutions:
@@ -122,11 +121,9 @@ sed -i 's/pip/uv pip/g; s/CONDA_PREFIX/VIRTUAL_ENV/g' setup.sh && bash setup.sh
 # Install kunlun_ops
 uv pip install "https://baidu-kunlun-customer.su.bcebos.com/aiak/mimo/20260227/kunlun_ops-0.1.58+ee39020a-cp310-cp310-linux_x86_64.whl"
 
-# Install xspeedgate_ops
-uv pip install "https://vllm-ai-models.bj.bcebos.com/aiak_share/20260403/xspeedgate_ops-1.1.0+53992ca-cp310-cp310-linux_x86_64.whl"
+# Install xspeedgate_ops (1.5.0 is the minimum: it provides weak_ref_tensor)
+uv pip install "https://vllm-ai-models.bj.bcebos.com/aiak_share/20260827/torch29/xspeedgate_ops-1.5.1%2B87067b3.torch29-cp310-cp310-linux_x86_64.whl"
 
-# Install cocopod
-uv pip install "https://vllm-ai-models.bj.bcebos.com/aiak_share/20260403/cocopod-1.1.0-cp310-cp310-linux_x86_64.whl"
 ```
 
 ## Quick Start
