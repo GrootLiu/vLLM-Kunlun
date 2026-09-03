@@ -68,6 +68,12 @@ docker run -itd ${DOCKER_DEVICE_CONFIG} \
 ::::
 :::::
 ## Install vLLM-kunlun
+### Install PyTorch
+
+```{code-block} bash
+uv pip install torch==2.9.0 torchvision torchaudio
+```
+
 ### Install vLLM
 
 ```{code-block} bash
