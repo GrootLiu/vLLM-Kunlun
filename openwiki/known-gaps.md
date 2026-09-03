@@ -87,7 +87,6 @@ buffer 仍在分配（`#L81-L96`）。
 | `ops/fla/chunk.py#L297-L321` | `if False:` 死分支 |
 | `ops/_kunlun_ops.py#L478-L496` | `M * top_k < 400` 小 batch 路径整块注释 |
 | `compressed_tensors_moe.py#L109-L113` | W4A8 分支整块注释 |
-| `vllm_kunlun/csrc/utils.cpp` | 编译了，但**无 Python 调用方**；且在 `#L26-L31` 被注册两次 |
 | `tool_parsers/__init__.py#L8` | `TOOL_PARSERS = {}` 空注册表（entry point 已接） |
 | `reasoning/__init__.py#L8` | `REASONING_PARSERS = {}` 空注册表（entry point 已接） |
 | `models/qwen3_dflash.py` 的 `DFlashQwen3ForCausalLM` | 未在 `models/__init__.py` 注册 |

@@ -33,7 +33,4 @@ include = ["vllm_kunlun*"]
 vllm_kunlun = [
     "conf/*",
     "data/*",
-    "so/*.so",
-    "include/*.h",
-    "_kunlun*.so",
 ]

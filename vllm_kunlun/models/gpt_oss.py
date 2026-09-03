@@ -7,7 +7,6 @@ import torch
 import torch.distributed as dist
 from torch import nn
 from transformers import GptOssConfig
-from vllm.v1.attention.backend import AttentionType
 from vllm.compilation.decorators import support_torch_compile
 from vllm.config import CacheConfig, VllmConfig
 from vllm.distributed import (
@@ -42,6 +41,7 @@ from vllm.model_executor.models.utils import (
 )
 from vllm.sequence import IntermediateTensors
 from vllm.utils import cdiv
+from vllm.v1.attention.backend import AttentionType
 
 
 class OAIAttention(nn.Module):
