@@ -58,13 +58,47 @@ class FakeDevice:
         self.index = index
 
 
+@pytest.fixture(autouse=True)
+def vllm_kunlun_logger_visible_to_caplog():
+    """Undo vllm's logger configuration for the duration of a test.
+
+    ``vllm.logger.init_logger`` sets ``propagate = False`` and pins a level on
+    the loggers it configures, and merely collecting this suite is enough to
+    import vllm. After that, records emitted under ``vllm_kunlun`` never reach
+    the root handler ``caplog`` installs, and ``caplog.at_level(DEBUG)`` -- which
+    only raises the *root* level -- cannot re-enable the debug records either.
+    Both make ``caplog.text`` come back empty, which is why those assertions
+    pass file by file and fail only when the whole suite runs in one process.
+    """
+    log = logging.getLogger("vllm_kunlun")
+    saved = (log.propagate, log.level)
+    log.propagate = True
+    log.setLevel(logging.NOTSET)
+    yield
+    log.propagate, log.level = saved
+
+
 @pytest.fixture
 def sys_modules_guard():
-    """Restore ``sys.modules`` after a test that installs stub modules."""
+    """Restore ``sys.modules`` after a test that installs stub modules.
+
+    Only hand-built stubs are evicted on teardown, recognised by having neither
+    ``__spec__`` nor ``__file__``. Dropping *every* entry that appeared during
+    the test also evicts modules pytest imports lazily; because
+    ``_pytest.fixtures`` and ``_pytest.python`` import each other, re-importing
+    one of them mid-session yields a half-initialised module, and pytest then
+    dies with ``INTERNALERROR ... cannot import name 'FixtureLookupError'`` the
+    next time it has to render a failure.
+    """
     saved = dict(sys.modules)
     yield sys.modules
     for name in set(sys.modules) - set(saved):
-        del sys.modules[name]
+        module = sys.modules[name]
+        if (
+            getattr(module, "__spec__", None) is None
+            and getattr(module, "__file__", None) is None
+        ):
+            del sys.modules[name]
     for name, module in saved.items():
         if sys.modules.get(name) is not module:
             sys.modules[name] = module

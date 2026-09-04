@@ -94,8 +94,14 @@ def make_state(max_num_reqs, max_model_len, vocab_size, seed, with_bins=True):
         "num_computed_tokens": torch.randint(
             0, 8, (max_num_reqs,), dtype=torch.int32, generator=g
         ),
+        # 2-D on purpose: the caller's buffer is [max_num_reqs, 1] (upstream
+        # states.py:64-66) even though the upstream kernel addresses it flat.
+        # A 1-D fixture here used to hide a shape bug -- indexing the real 2-D
+        # tensor broadcasts the update to [num_reqs, num_reqs], which happens to
+        # be right only for num_reqs == 1, so batch=1 worked and batch>1 wrote
+        # nothing for every row but the first.
         "last_sampled_tokens": torch.randint(
-            0, vocab_size, (max_num_reqs,), dtype=torch.int64, generator=g
+            0, vocab_size, (max_num_reqs, 1), dtype=torch.int64, generator=g
         ),
         "output_bin_counts": (
             torch.randint(
