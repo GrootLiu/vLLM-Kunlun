@@ -138,7 +138,19 @@ class TestDispatchHooks:
 class TestCustomImport:
     @pytest.fixture
     def imports(self, monkeypatch):
-        """Replace the real ``__import__`` and redirect preload with spies."""
+        """Replace the real ``__import__`` and redirect preload with spies.
+
+        ``_OLD_IMPORT`` is where ``_custom_import`` delegates the actual
+        importing, so stubbing it out breaks *every* import in the process for
+        as long as the hook is live in ``builtins`` -- which it is whenever
+        something earlier in the session ran ``vllm_kunlun.register()``. pytest
+        then trips over its own lazy imports and the run ends in
+        ``INTERNALERROR ... cannot import name 'FixtureLookupError'``, which is
+        why these tests passed file-by-file but killed the whole suite.
+        Uninstalling the hook for the duration keeps the spy visible to the
+        direct ``_custom_import`` calls below while the rest of the process
+        stays importable.
+        """
         calls = {"imported": [], "preloaded": []}
         sentinel = object()
 
@@ -149,6 +161,7 @@ class TestCustomImport:
         def fake_preload(name, fromlist):
             calls["preloaded"].append((name, fromlist))
 
+        monkeypatch.setattr(builtins, "__import__", import_hooks._OLD_IMPORT)
         monkeypatch.setattr(import_hooks, "_OLD_IMPORT", fake_import)
         monkeypatch.setattr(import_hooks, "preload_import_mappings", fake_preload)
         calls["sentinel"] = sentinel

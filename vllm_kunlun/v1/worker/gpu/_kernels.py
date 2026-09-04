@@ -100,7 +100,7 @@ def scatter_num_accepted(idx_mapping, num_sampled, num_accepted) -> None:
 def post_update(
     idx_mapping,  # [num_reqs] batch_idx -> req_state_idx; negative means skip
     num_computed_tokens,  # [max_num_reqs]
-    last_sampled_tokens,  # [max_num_reqs]
+    last_sampled_tokens,  # [max_num_reqs, 1] (upstream indexes it flat)
     output_bin_counts,  # [max_num_reqs, vocab_size] or None
     sampled_tokens,  # [num_reqs, num_speculative_steps + 1]
     num_sampled,  # [max_num_reqs]
@@ -181,18 +181,27 @@ def post_update(
     )
 
     # last_sampled_tokens[req] = sampled_tokens[b, ns - 1]  when ns > 0
+    #
+    # Flattened deliberately: the caller's buffer is [max_num_reqs, 1] (states.py
+    # :64-66), and the upstream kernel addresses it flat as
+    # ``last_sampled_tokens_ptr + req_state_idx``. Indexing the 2-D tensor gives
+    # a [num_reqs, 1] ``cur_last`` that broadcasts against the [num_reqs] update
+    # into [num_reqs, num_reqs], which is only coincidentally the right shape
+    # when num_reqs == 1 -- the Kunlun XPU index_add_ does not reject the
+    # mismatch, it silently drops every row but the first.
     last = (
         sampled_tokens[:num_reqs]
         .gather(1, (ns - 1).clamp(min=0).unsqueeze(1))
         .squeeze(1)
     )
-    cur_last = last_sampled_tokens[req]
-    last_sampled_tokens.index_add_(
+    flat_last = last_sampled_tokens.view(-1)
+    cur_last = flat_last[req]
+    flat_last.index_add_(
         0,
         req,
         torch.where(
             ns > 0,
-            last.to(last_sampled_tokens.dtype) - cur_last,
+            last.to(flat_last.dtype) - cur_last,
             torch.zeros_like(cur_last),
         ),
     )

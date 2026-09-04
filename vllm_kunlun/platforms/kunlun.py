@@ -1,6 +1,5 @@
 """kunlun"""
 
-import functools
 from typing import TYPE_CHECKING, Optional
 
 import psutil
@@ -214,79 +213,6 @@ class KunlunPlatform(Platform):
         parallel_config = vllm_config.parallel_config  # Not use scheduler_config
         # scheduler_config = vllm_config.scheduler_config
         model_config = vllm_config.model_config
-
-        # --- Model Runner V2 Triton gate (Kunlun XPU has no Triton) ---
-        # Kunlun replaces the V2 Triton kernels with torch-native / kunlun_ops
-        # equivalents (see the ``vllm.v1.worker.gpu.*`` post-import patches in
-        # vllm_kunlun/registration/compat_patches.py), so upstream's Triton veto
-        # has to be lifted:
-        # ``vllm.config.vllm`` uses HAS_TRITON only for the two V2 checks
-        # (``use_v2_model_runner`` returns False when ``not HAS_TRITON``, and
-        # ``_validate_v2_model_runner`` hard raises "Model Runner V2 requires
-        # Triton."), so forcing it True here has no other side effects.
-        #
-        # NOTE: we deliberately do NOT set VLLM_USE_V2_MODEL_RUNNER. Upstream
-        # already routes only *some* models to V2, and its own selection logic
-        # (config/vllm.py::use_v2_model_runner) is more trustworthy than a table
-        # maintained here -- in particular ``_is_default_v2_model_runner_model``
-        # excludes hybrid models, which the V2 runner does not fully support on
-        # Kunlun yet. Defaulting the env var to "1" made the property
-        # early-return True and skipped all of those filters, which is how a
-        # hybrid model (Qwen3.5) reached V2 and died importing
-        # ``vllm.v1.worker.gpu.model_states.mamba_hybrid``. Users can still opt
-        # in explicitly with VLLM_USE_V2_MODEL_RUNNER=1 (or force V1 with "0").
-        import vllm.config.vllm as _vllm_cfg_mod
-
-        if not getattr(_vllm_cfg_mod, "_kunlun_v2_gate_installed", False):
-            # Kunlun P800 has no usable Triton. Set the config module's flag
-            # only to bypass upstream's V2 Triton veto; the affected V2 paths
-            # are rejected explicitly below.
-            _vllm_cfg_mod.HAS_TRITON = True
-
-            _orig_unsupported = (
-                _vllm_cfg_mod.VllmConfig._get_v2_model_runner_unsupported_features
-            )
-
-            @functools.wraps(_orig_unsupported)
-            def _kunlun_mrv2_unsupported_features(self) -> list[str]:
-                # These paths still depend on unsupported Triton kernels.
-                unsupported = _orig_unsupported(self)
-
-                if self.speculative_config is not None:
-                    unsupported.append(
-                        "speculative decoding (Kunlun XPU P800 has no Triton and the "
-                        "V2 rejection-sampler kernels are not replaced yet)"
-                    )
-
-                if self.parallel_config.decode_context_parallel_size > 1:
-                    unsupported.append(
-                        "decode context parallelism (not replaced on Kunlun XPU P800)"
-                    )
-
-                if (
-                    self.cache_config is not None
-                    and self.cache_config.mamba_cache_mode == "align"
-                ):
-                    unsupported.append(
-                        "mamba align cache mode (its Triton launch sites are not "
-                        "replaced on Kunlun XPU P800)"
-                    )
-
-                if envs.VLLM_COMPUTE_NANS_IN_LOGITS:
-                    unsupported.append(
-                        "VLLM_COMPUTE_NANS_IN_LOGITS (not replaced on Kunlun XPU P800)"
-                    )
-
-                return unsupported
-
-            _vllm_cfg_mod.VllmConfig._get_v2_model_runner_unsupported_features = (
-                _kunlun_mrv2_unsupported_features
-            )
-            _vllm_cfg_mod._kunlun_v2_gate_installed = True
-            logger.info(
-                "[KunlunPlugin] Opened the Model Runner V2 Triton gate and installed "
-                "the Kunlun capability gate (upstream still decides whether V2 is used)."
-            )
 
         if parallel_config.worker_cls == "auto":
             parallel_config.worker_cls = "vllm.v1.worker.gpu_worker.Worker"
